@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Quadro de Tarefas</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter"', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
+          },
+          colors: {
+            app: {
+              bg: '#FAFBFC',
+              surface: '#FFFFFF',
+              subtle: '#F4F5F7',
+              border: '#E5E7EB',
+              'border-subtle': '#F0F2F5',
+              text: '#111827',
+              muted: '#6B7280',
+              secondary: '#4B5563'
+            },
+            accent: {
+              coletiva: { DEFAULT: '#6366F1', tint: '#EEF2FF', border: '#C7D2FE', text: '#4338CA' },
+              renan: { DEFAULT: '#D97706', tint: '#FFFBEB', border: '#FDE68A', text: '#B45309' },
+              fernanda: { DEFAULT: '#2563EB', tint: '#EFF6FF', border: '#BFDBFE', text: '#1D4ED8' },
+              leticia: { DEFAULT: '#059669', tint: '#ECFDF5', border: '#A7F3D0', text: '#047857' }
+            }
+          },
+          boxShadow: {
+            'elevation-1': '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
+            'elevation-2': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+            'elevation-3': '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.03)',
+            'drawer': '-8px 0 24px rgba(0, 0, 0, 0.07)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Custom subtle scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 999px; }
+    .dark ::-webkit-scrollbar-thumb { background: #334155; }
+    ::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
+
+    /* Transitions & drag helpers */
+    .drag-target { outline: 2px dashed #94A3B8; outline-offset: -2px; background-color: rgba(241, 245, 249, 0.6) !important; }
+    .card-dragging { opacity: 0.35; transform: scale(0.98); }
+    .drawer-backdrop { transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+    .drawer-panel { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  </style>
+</head>
+<body class="bg-app-bg text-app-text font-sans antialiased min-h-screen flex flex-col selection:bg-slate-200 selection:text-slate-900">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-app-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14 gap-4">
+        
+        <!-- Left: Workspace Identity & Section Badges -->
+        <div class="flex items-center gap-6 min-w-0">
+          <div class="flex items-center gap-2.5 flex-shrink-0 cursor-pointer" onclick="setActiveArea('coletiva')">
+            <div id="workspace-dot" class="w-2.5 h-2.5 rounded-full bg-accent-coletiva transition-colors duration-200"></div>
+            <span class="font-semibold text-sm tracking-tight text-slate-900">Equipe</span>
+            <span class="text-xs text-slate-400 font-normal">/</span>
+            <span id="header-area-name" class="text-xs font-medium text-slate-600 truncate">Task Coletiva</span>
+          </div>
+
+          <!-- Area Selector (Pill navigation) -->
+          <nav class="hidden md:flex items-center space-x-1" aria-label="Navegação entre áreas">
+            <button onclick="setActiveArea('coletiva')" id="nav-btn-coletiva" class="px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5">
+              <span>🎯</span> Task Coletiva
+              <span id="nav-count-coletiva" class="text-[10px] font-mono opacity-70">0</span>
+            </button>
+            <button onclick="setActiveArea('renan')" id="nav-btn-renan" class="px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5">
+              <span>👨‍💻</span> Renan
+              <span id="nav-count-renan" class="text-[10px] font-mono opacity-70">0</span>
+            </button>
+            <button onclick="setActiveArea('fernanda')" id="nav-btn-fernanda" class="px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5">
+              <span>👩‍💻</span> Fernanda
+              <span id="nav-count-fernanda" class="text-[10px] font-mono opacity-70">0</span>
+            </button>
+            <button onclick="setActiveArea('leticia')" id="nav-btn-leticia" class="px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5">
+              <span>👩‍💻</span> Letícia
+              <span id="nav-count-leticia" class="text-[10px] font-mono opacity-70">0</span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- Right: View switch, Quick Search & New Task -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+          
+          <!-- View Toggle (Lista / Kanban) -->
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 text-xs">
+            <button onclick="setViewMode('list')" id="view-toggle-list" class="px-2.5 py-1 rounded-[6px] font-medium transition flex items-center gap-1 text-slate-900 bg-white shadow-elevation-1">
+              <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+              <span class="hidden sm:inline">Lista</span>
+            </button>
+            <button onclick="setViewMode('kanban')" id="view-toggle-kanban" class="px-2.5 py-1 rounded-[6px] font-medium transition flex items-center gap-1 text-slate-500 hover:text-slate-800">
+              <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg>
+              <span class="hidden sm:inline">Kanban</span>
+            </button>
+          </div>
+
+          <!-- Quick Filter Input (Linear style) -->
+          <div class="relative hidden sm:block">
+            <input type="text" id="quick-filter-input" oninput="handleQuickFilter(this.value)" placeholder="Buscar tarefa..." class="w-36 lg:w-44 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 rounded-lg pl-7 pr-2.5 py-1 text-xs text-slate-800 placeholder-slate-400 outline-none focus:ring-1 focus:ring-slate-400 focus:w-56 transition-all">
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+
+          <!-- Secondary Actions Dropdown (Export/Import/Restore) -->
+          <div class="relative" id="menu-dropdown-container">
+            <button onclick="toggleOptionsMenu()" class="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="Mais opções">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+            </button>
+            <div id="options-menu" class="hidden absolute right-0 mt-1.5 w-44 bg-white rounded-lg shadow-elevation-3 border border-slate-200 py-1 z-50 text-xs">
+              <button onclick="exportJSONBackup()" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700 flex items-center gap-2">
+                <span>💾</span> Exportar JSON
+              </button>
+              <label class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700 flex items-center gap-2 cursor-pointer">
+                <span>📥</span> Importar JSON
+                <input type="file" accept=".json" onchange="importJSONBackup(event)" class="hidden">
+              </label>
+              <button onclick="confirmResetDefaults()" class="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 flex items-center gap-2 border-t border-slate-100 mt-1">
+                <span>↺</span> Restaurar Originais
+              </button>
+            </div>
+          </div>
+
+          <!-- Primary "+ Nova Tarefa" Button -->
+          <button onclick="openNewTaskModal()" class="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-elevation-1 transition-all">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span>Nova tarefa</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Mobile navigation pills -->
+      <nav class="flex md:hidden space-x-1 overflow-x-auto py-2 no-scrollbar border-t border-slate-100 text-xs" aria-label="Navegação mobile">
+        <button onclick="setActiveArea('coletiva')" id="mob-nav-coletiva" class="px-2.5 py-1 rounded-md whitespace-nowrap font-medium">🎯 Coletiva</button>
+        <button onclick="setActiveArea('renan')" id="mob-nav-renan" class="px-2.5 py-1 rounded-md whitespace-nowrap font-medium">👨‍💻 Renan</button>
+        <button onclick="setActiveArea('fernanda')" id="mob-nav-fernanda" class="px-2.5 py-1 rounded-md whitespace-nowrap font-medium">👩‍💻 Fernanda</button>
+        <button onclick="setActiveArea('leticia')" id="mob-nav-leticia" class="px-2.5 py-1 rounded-md whitespace-nowrap font-medium">👩‍💻 Letícia</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Workspace Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-5">
+
+    <!-- Executive Area Header (Compact & Clean) -->
+    <section class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-app-border">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2.5">
+          <span id="area-hero-icon" class="text-xl">🎯</span>
+          <h2 id="area-hero-title" class="text-lg sm:text-xl font-semibold tracking-tight text-slate-900">Task Coletiva</h2>
+          <span id="area-progress-badge" class="ml-1 text-xs font-mono font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">0/0</span>
+        </div>
+        <p id="area-hero-subtitle" class="text-xs text-slate-500">Atividades compartilhadas e alinhamentos de entrega da equipe</p>
+      </div>
+
+      <!-- Compact Progress Line & Sort dropdown -->
+      <div class="flex items-center gap-4 self-end sm:self-center">
+        <!-- Slim 4px progress bar -->
+        <div class="hidden sm:flex flex-col items-end gap-1 w-36">
+          <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div id="area-progress-bar" class="h-full bg-accent-coletiva rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <span id="area-progress-percent" class="text-[10px] font-mono text-slate-400">0% concluído</span>
+        </div>
+
+        <!-- Sorter -->
+        <div class="flex items-center gap-1.5 text-xs text-slate-500">
+          <span class="text-slate-400 hidden sm:inline">Ordenar:</span>
+          <select id="task-sort-select" onchange="changeSort(this.value)" class="bg-white border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-700 outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer">
+            <option value="default">Padrão</option>
+            <option value="due">Prazo mais próximo</option>
+            <option value="priority">Prioridade (Alta → Baixa)</option>
+            <option value="name">Alfabética</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Views Container (List / Kanban) -->
+    <div id="view-container" class="min-h-[380px] flex-1">
+      <!-- Injected via JavaScript -->
+    </div>
+
+    <!-- Section Notes (Minimalist collapsible footer note) -->
+    <section class="mt-4 border-t border-app-border pt-4">
+      <div class="flex items-center justify-between mb-2">
+        <label for="area-notes-input" class="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+          <span id="area-notes-label">Anotações da Seção</span>
+        </label>
+        <span id="area-notes-status" class="text-[10px] text-emerald-600 font-mono hidden">Salvo</span>
+      </div>
+      <textarea id="area-notes-input" oninput="saveAreaNotes(this.value)" rows="2" placeholder="Informações de referência, contatos ou lembretes gerais desta seção..." class="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-700 placeholder-slate-400 outline-none focus:ring-1 focus:ring-slate-300 resize-y transition-colors"></textarea>
+    </section>
+
+  </main>
+
+  <!-- ==================== DRAWER LATERAL: DETALHES DA TAREFA (LINEAR STYLE) ==================== -->
+  <div id="task-drawer-backdrop" onclick="closeDrawer()" class="drawer-backdrop fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-[2px] opacity-0 pointer-events-none"></div>
+
+  <aside id="task-drawer" class="drawer-panel fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[540px] bg-white shadow-drawer border-l border-app-border flex flex-col translate-x-full overflow-hidden">
+    
+    <!-- Drawer Header -->
+    <div class="px-5 py-3.5 border-b border-app-border flex items-center justify-between bg-slate-50/60">
+      <div class="flex items-center gap-2 text-xs text-slate-500">
+        <span id="drawer-area-tag" class="px-2 py-0.5 rounded font-medium text-[11px] bg-slate-200 text-slate-700">Área</span>
+        <span>•</span>
+        <span id="drawer-status-preview" class="font-medium text-slate-600">A fazer</span>
+      </div>
+      
+      <div class="flex items-center gap-1.5">
+        <button onclick="promptDeleteCurrentDrawerTask()" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition" title="Excluir tarefa">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+        </button>
+        <button onclick="closeDrawer()" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition" title="Fechar painel">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Drawer Body (Scrollable) -->
+    <div class="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+
+      <!-- Title (Inline Editable) -->
+      <div>
+        <input type="text" id="drawer-task-title" onchange="updateDrawerTaskField('title', this.value)" class="w-full text-base sm:text-lg font-semibold text-slate-900 border-none outline-none focus:ring-1 focus:ring-slate-300 rounded p-1 -ml-1 transition" placeholder="Título da tarefa">
+      </div>
+
+      <!-- Quick Metadata Bar (Assignee, Status, Priority, Due) -->
+      <div class="grid grid-cols-2 gap-3 text-xs bg-slate-50/80 p-3 rounded-lg border border-slate-200/60">
+        <!-- Status -->
+        <div>
+          <label class="block text-[10px] font-medium uppercase text-slate-400 mb-1">Status</label>
+          <select id="drawer-task-status" onchange="updateDrawerTaskField('status', this.value)" class="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 font-medium outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer">
+            <option value="todo">⚪ A fazer</option>
+            <option value="doing">🔵 Em andamento</option>
+            <option value="done">🟢 Concluído</option>
+          </select>
+        </div>
+
+        <!-- Responsável -->
+        <div>
+          <label class="block text-[10px] font-medium uppercase text-slate-400 mb-1">Responsável</label>
+          <select id="drawer-task-person" onchange="updateDrawerTaskField('person', this.value)" class="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 font-medium outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer">
+            <option value="coletiva">🎯 Task Coletiva</option>
+            <option value="renan">👨‍💻 Renan</option>
+            <option value="fernanda">👩‍💻 Fernanda</option>
+            <option value="leticia">👩‍💻 Letícia</option>
+          </select>
+        </div>
+
+        <!-- Prioridade -->
+        <div>
+          <label class="block text-[10px] font-medium uppercase text-slate-400 mb-1">Prioridade</label>
+          <select id="drawer-task-priority" onchange="updateDrawerTaskField('priority', this.value)" class="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 font-medium outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer">
+            <option value="Alta">🔴 Alta</option>
+            <option value="Média">🟡 Média</option>
+            <option value="Baixa">🟢 Baixa</option>
+          </select>
+        </div>
+
+        <!-- Prazo -->
+        <div>
+          <label class="block text-[10px] font-medium uppercase text-slate-400 mb-1">Prazo de Conclusão</label>
+          <div class="flex items-center gap-1">
+            <input type="date" id="drawer-task-due" onchange="updateDrawerTaskField('due', this.value)" class="w-full bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-800 text-xs outline-none focus:ring-1 focus:ring-slate-400">
+            <button onclick="clearDrawerDueDate()" title="Limpar prazo" class="p-1 text-slate-400 hover:text-slate-600 rounded">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Permanent Instructions / Description -->
+      <div class="space-y-1.5">
+        <label class="text-xs font-semibold text-slate-700 flex items-center justify-between">
+          <span>Descrição & Instruções</span>
+          <span class="text-[10px] font-normal text-slate-400">Objetivo e referências</span>
+        </label>
+        <textarea id="drawer-task-detail" onchange="updateDrawerTaskField('detail', this.value)" rows="4" placeholder="Instruções completas da atividade, contatos, links..." class="w-full bg-white border border-slate-200 rounded-lg p-3 text-xs leading-relaxed text-slate-700 placeholder-slate-400 outline-none focus:ring-1 focus:ring-slate-300 resize-y"></textarea>
+      </div>
+
+      <!-- Checklist & Steps -->
+      <div class="space-y-3 pt-2 border-t border-slate-100">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h4 class="text-xs font-semibold text-slate-700">Checklist de Etapas</h4>
+            <span id="drawer-sub-count" class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">0/0</span>
+          </div>
+          <div class="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+            <div id="drawer-sub-progress" class="h-full bg-slate-800 transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Steps List -->
+        <div id="drawer-subtasks-list" class="space-y-1.5">
+          <!-- Injected via JavaScript -->
+        </div>
+
+        <!-- Add Step Input -->
+        <div class="flex items-center gap-2 pt-1">
+          <input type="text" id="drawer-new-sub-input" onkeydown="if(event.key === 'Enter') addDrawerSubtask()" placeholder="+ Adicionar nova etapa (Enter)..." class="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:ring-1 focus:ring-slate-300">
+          <button onclick="addDrawerSubtask()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-medium transition">
+            Adicionar
+          </button>
+        </div>
+      </div>
+
+      <!-- Execution Notes (Separate from instructions) -->
+      <div class="space-y-1.5 pt-2 border-t border-slate-100">
+        <label class="text-xs font-semibold text-slate-700 flex items-center justify-between">
+          <span>Observações de Execução</span>
+          <span class="text-[10px] font-normal text-slate-400">Atualizações em tempo real</span>
+        </label>
+        <textarea id="drawer-task-note" onchange="updateDrawerTaskField('note', this.value)" rows="3" placeholder="Registre aqui o andamento, dúvidas, impedimentos ou notas rápidas..." class="w-full bg-slate-50/50 border border-slate-200 rounded-lg p-3 text-xs leading-relaxed text-slate-700 placeholder-slate-400 outline-none focus:ring-1 focus:ring-slate-300 resize-y"></textarea>
+      </div>
+
+    </div>
+
+    <!-- Drawer Footer -->
+    <div class="px-6 py-3 border-t border-app-border bg-slate-50/50 flex items-center justify-between text-xs text-slate-400 font-mono">
+      <span id="drawer-created-date">Criada em: --</span>
+      <button onclick="closeDrawer()" class="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-md font-sans font-medium text-xs shadow-elevation-1">
+        Concluído
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ==================== MODAL: NOVA TAREFA ==================== -->
+  <div id="modal-new-task" class="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-[2px] flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-elevation-3 border border-app-border w-full max-w-lg overflow-hidden flex flex-col">
+      <div class="px-5 py-3.5 border-b border-app-border flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-slate-900">Cadastrar Nova Tarefa</h3>
+        <button onclick="closeNewTaskModal()" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+      </div>
+
+      <form id="new-task-form" onsubmit="handleNewTaskSubmit(event)" class="p-5 space-y-4 text-xs">
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Título da tarefa <span class="text-rose-500">*</span></label>
+          <input type="text" id="new-title" required placeholder="Ex.: Homologação e teste ZCC" class="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-slate-800 outline-none focus:ring-1 focus:ring-slate-400">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Área / Responsável</label>
+            <select id="new-person" class="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-800 outline-none focus:ring-1 focus:ring-slate-400">
+              <option value="coletiva">🎯 Task Coletiva</option>
+              <option value="renan">👨‍💻 Renan</option>
+              <option value="fernanda">👩‍💻 Fernanda</option>
+              <option value="leticia">👩‍💻 Letícia</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Prioridade</label>
+            <select id="new-priority" class="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-800 outline-none focus:ring-1 focus:ring-slate-400">
+              <option value="Média">🟡 Média</option>
+              <option value="Alta">🔴 Alta</option>
+              <option value="Baixa">🟢 Baixa</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Status inicial</label>
+            <select id="new-status" class="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-800 outline-none focus:ring-1 focus:ring-slate-400">
+              <option value="todo">A fazer</option>
+              <option value="doing">Em andamento</option>
+              <option value="done">Concluído</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Prazo de conclusão</label>
+            <input type="date" id="new-due" class="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-800 outline-none focus:ring-1 focus:ring-slate-400">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Descrição permanente / Instruções</label>
+          <textarea id="new-detail" rows="3" placeholder="Informações detalhadas que guiam a execução da tarefa..." class="w-full bg-white border border-slate-200 rounded-md p-2.5 text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 resize-y"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeNewTaskModal()" class="px-3.5 py-1.5 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 font-medium">
+            Cancelar
+          </button>
+          <button type="submit" class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md font-medium shadow-elevation-1">
+            Criar Tarefa
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CONFIRMAÇÃO DE EXCLUSÃO ==================== -->
+  <div id="modal-delete-confirm" class="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-[2px] flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-elevation-3 border border-app-border w-full max-w-sm p-5 space-y-3">
+      <h3 class="text-sm font-semibold text-slate-900">Excluir Tarefa</h3>
+      <p class="text-xs text-slate-500">Tem certeza de que deseja remover esta tarefa e todas as suas etapas? Esta ação não pode ser desfeita.</p>
+      <div id="delete-task-preview" class="p-2 bg-slate-50 rounded text-xs font-medium text-slate-700 truncate border border-slate-100">
+        --
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeDeleteConfirmModal()" class="px-3 py-1.5 text-xs border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 font-medium">
+          Cancelar
+        </button>
+        <button id="btn-execute-delete" class="px-3.5 py-1.5 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded-md font-medium shadow-elevation-1">
+          Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-3.5 py-2.5 rounded-lg shadow-elevation-3 text-xs font-medium flex items-center gap-2 transform translate-y-16 opacity-0 pointer-events-none transition-all duration-200">
+    <span id="toast-icon">✓</span>
+    <span id="toast-text">Salvo com sucesso</span>
+  </div>
+
+  <!-- ==================== LÓGICA E DADOS DA APLICAÇÃO ==================== -->
+  <script>
+    /* ----------------------------------------------------
+       CONFIGURAÇÕES VISUAIS DAS QUATRO ÁREAS
+    ---------------------------------------------------- */
+    const AREA_CONFIG = {
+      coletiva: {
+        id: 'coletiva',
+        name: 'Task Coletiva',
+        icon: '🎯',
+        subtitle: 'Atividades compartilhadas e alinhamentos de entrega da equipe',
+        colorHex: '#6366F1',
+        activeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        dotClass: 'bg-indigo-500'
+      },
+      renan: {
+        id: 'renan',
+        name: 'Renan',
+        icon: '👨‍💻',
+        subtitle: 'Integrações, fluxos de agenda e validações técnicas',
+        colorHex: '#D97706',
+        activeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+        dotClass: 'bg-amber-500'
+      },
+      fernanda: {
+        id: 'fernanda',
+        name: 'Fernanda',
+        icon: '👩‍💻',
+        subtitle: 'Cadastros estratégicos, parceiros e palestras Sindiroupas',
+        colorHex: '#2563EB',
+        activeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+        dotClass: 'bg-blue-500'
+      },
+      leticia: {
+        id: 'leticia',
+        name: 'Letícia',
+        icon: '👩‍💻',
+        subtitle: 'Homologações, permissões e treinamentos da plataforma ZCC',
+        colorHex: '#059669',
+        activeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        dotClass: 'bg-emerald-500'
+      }
+    };
+
+    /* ----------------------------------------------------
+       BASE DE DADOS INICIAIS EXATAMENTE CONFORME ESPECIFICADO
+    ---------------------------------------------------- */
+    const INITIAL_DATA = {
+      tasks: [
+        /* LETÍCIA (Verde) */
+        {
+          id: 'leticia-zcc-treinamento',
+          person: 'leticia',
+          title: 'Treinamento e Imersão ZCC',
+          detail: 'Objetivo: organizar e realizar o treinamento inicial da Carla no ZCC.\n\nContato:\n• Nome: Carla\n• Função: Vendedora\n• E-mail: carla.michely@franquias.zenvia.com',
+          createdDate: '2026-10-27',
+          due: '',
+          status: 'todo',
+          priority: 'Média',
+          note: '',
+          subs: [
+            { id: 's1', t: 'Entrar em contato com a Carla pelo Google Chat ou por e-mail', d: false },
+            { id: 's2', t: 'Definir o horário do treinamento, com duração estimada de 30 a 45 minutos', d: false },
+            { id: 's3', t: 'Enviar o convite do treinamento pela agenda', d: false },
+            { id: 's4', t: 'Preparar um roteiro rápido (Login e acesso, Navegação pela interface, Envio de mensagens)', d: false },
+            { id: 's5', t: 'Realizar o treinamento', d: false },
+            { id: 's6', t: 'Responder às dúvidas da participante', d: false }
+          ]
+        },
+        {
+          id: 'leticia-zcc-teste-acesso',
+          person: 'leticia',
+          title: 'Teste de acesso ao ZCC',
+          detail: 'Objetivo: garantir que a Carla consiga acessar o sistema e utilizar as permissões necessárias.\n\nObservação: essa tarefa está relacionada ao treinamento, mas deve permanecer identificável e acompanhável de forma independente.',
+          createdDate: '2026-10-27',
+          due: '',
+          status: 'todo',
+          priority: 'Média',
+          note: '',
+          subs: [
+            { id: 's1', t: 'Testar o login da Carla', d: false },
+            { id: 's2', t: 'Verificar as permissões de acesso', d: false },
+            { id: 's3', t: 'Confirmar que as funcionalidades necessárias estão operacionais', d: false },
+            { id: 's4', t: 'Registrar eventuais problemas encontrados', d: false }
+          ]
+        },
+
+        /* FERNANDA (Azul) */
+        {
+          id: 'fernanda-sindiroupas-5-temas',
+          person: 'fernanda',
+          title: 'Preparação dos cinco temas para o Sindiroupas',
+          detail: 'Objetivo: elaborar cinco propostas de temas para a palestra da Elis.\nEntregável: um documento contendo cinco propostas.\n\nCada proposta deverá apresentar:\n• Título\n• Defesa do tema, explicando sua relevância\n• Três tópicos que serão abordados',
+          createdDate: '2026-10-27',
+          due: '',
+          status: 'todo',
+          priority: 'Média',
+          note: '',
+          subs: [
+            { id: 's1', t: 'Elaborar a primeira proposta', d: false },
+            { id: 's2', t: 'Elaborar a segunda proposta', d: false },
+            { id: 's3', t: 'Elaborar a terceira proposta', d: false },
+            { id: 's4', t: 'Elaborar a quarta proposta', d: false },
+            { id: 's5', t: 'Elaborar a quinta proposta', d: false },
+            { id: 's6', t: 'Organizar as cinco propostas em um documento', d: false },
+            { id: 's7', t: 'Enviar o documento para a Elis revisar', d: false }
+          ]
+        },
+        {
+          id: 'fernanda-elo-prm-cadastro',
+          person: 'fernanda',
+          title: 'Cadastro do parceiro Elo no PRM',
+          detail: 'Objetivo: concluir o cadastro completo do parceiro no sistema de PRM.\n\n⚠️ ATENÇÃO: PRAZO CRÍTICO!\nO cadastro deve ser realizado em 27/10/2026, pois haverá freezing em 28/10/2026 e não haverá acesso ao sistema nessa data.\n\nDados do parceiro:\n• Razão social: ELO MARTECH LTDA.\n• CNPJ: 61.919.946/0001-40\n• E-mail: felipemarcalrod@gmail.com\n• Plano: Starter\n• Valor informado: US$ 100',
+          createdDate: '2026-10-27',
+          due: '2026-10-27',
+          status: 'todo',
+          priority: 'Alta',
+          note: 'Prazo crítico: Freezing técnico do sistema em 28/10/2026.',
+          subs: [
+            { id: 's1', t: 'Acessar o sistema de PRM', d: false },
+            { id: 's2', t: 'Preencher os dados cadastrais', d: false },
+            { id: 's3', t: 'Configurar o plano Starter', d: false },
+            { id: 's4', t: 'Conferir as informações inseridas', d: false },
+            { id: 's5', t: 'Finalizar o cadastro', d: false },
+            { id: 's6', t: 'Confirmar que o cadastro foi concluído corretamente', d: false }
+          ]
+        },
+
+        /* RENAN (Amarelo) */
+        {
+          id: 'renan-calendar-testar-integracao',
+          person: 'renan',
+          title: 'Finalizar e testar a integração com o Google Calendar',
+          detail: 'Objetivo: concluir a integração e verificar seu funcionamento.',
+          createdDate: '2026-10-27',
+          due: '',
+          status: 'todo',
+          priority: 'Média',
+          note: '',
+          subs: [
+            { id: 's1', t: 'Finalizar a implementação', d: false },
+            { id: 's2', t: 'Testar a consulta de horários disponíveis', d: false },
+            { id: 's3', t: 'Verificar se os conflitos da agenda são considerados', d: false },
+            { id: 's4', t: 'Corrigir eventuais problemas', d: false },
+            { id: 's5', t: 'Confirmar que a integração está funcionando corretamente', d: false }
+          ]
+        },
+        {
+          id: 'renan-calendar-documentacao',
+          person: 'renan',
+          title: 'Documentação da integração com o Google Calendar',
+          detail: 'Objetivo: criar uma documentação rápida, com aproximadamente uma página.',
+          createdDate: '2026-10-27',
+          due: '',
+          status: 'todo',
+          priority: 'Baixa',
+          note: '',
+          subs: [
+            { id: 's1', t: 'Explicar o funcionamento da integração', d: false },
+            { id: 's2', t: 'Descrever o fluxo de consulta', d: false },
+            { id: 's3', t: 'Registrar as configurações importantes', d: false },
+            { id: 's4', t: 'Documentar eventuais limitações', d: false },
+            { id: 's5', t: 'Revisar e finalizar o documento', d: false }
+          ]
+        },
+        {
+          id: 'renan-mercadolivre-validar',
+          person: 'renan',
+          title: 'Validar as configurações e permissões do Mercado Livre',
+          detail: 'Objetivo: verificar se a conta do Mercado Livre está configurada corretamente para as atividades necessárias.',
+          createdDate: '2026-10-27',
+          due: '',
+          status: 'todo',
+          priority: 'Média',
+          note: '',
+          subs: [
+            { id: 's1', t: 'Verificar as configurações atuais', d: false },
+            { id: 's2', t: 'Conferir as permissões de acesso', d: false },
+            { id: 's3', t: 'Identificar eventuais pendências', d: false },
+            { id: 's4', t: 'Registrar problemas ou ajustes necessários', d: false }
+          ]
+        },
+
+        /* TASK COLETIVA (Roxo) */
+        {
+          id: 'coletiva-capacitacao-rcs',
+          person: 'coletiva',
+          title: 'Capacitação em RCS',
+          detail: 'Objetivo: aprofundar o conhecimento da equipe sobre o canal RCS.\nOrientação: reservar um horário na agenda para realizar um estudo aprofundado.',
+          createdDate: '2026-10-27',
+          due: '',
+          status: 'todo',
+          priority: 'Média',
+          note: '',
+          subs: [
+            { id: 's1', t: 'Conceitos fundamentais do RCS', d: false },
+            { id: 's2', t: 'Principais casos de uso', d: false },
+            { id: 's3', t: 'Regras de envio', d: false },
+            { id: 's4', t: 'Recursos multimídia', d: false },
+            { id: 's5', t: 'Diferenciais em relação ao SMS e ao WhatsApp', d: false }
+          ]
+        },
+        {
+          id: 'coletiva-gravacao-audio-rcs',
+          person: 'coletiva',
+          title: 'Gravação de áudio explicando o RCS',
+          detail: 'Objetivo: cada integrante deve gravar e enviar um áudio de, no máximo, um minuto, explicando o que é RCS.\n\nCritério de conclusão: os três áudios devem ter sido enviados.',
+          createdDate: '2026-10-27',
+          due: '',
+          status: 'todo',
+          priority: 'Média',
+          note: '',
+          subs: [
+            { id: 's1', t: 'Renan: preparar e gravar o áudio', d: false },
+            { id: 's2', t: 'Fernanda: preparar e gravar o áudio', d: false },
+            { id: 's3', t: 'Letícia: preparar e gravar o áudio', d: false },
+            { id: 's4', t: 'Reunir ou acompanhar o envio dos três áudios', d: false }
+          ]
+        }
+      ],
+      notes: {
+        coletiva: 'Alinhamento constante da equipe sobre a janela de freezing em 28/10/2026.',
+        renan: 'Acompanhar respostas das APIs do Google Calendar e status do token Mercado Livre.',
+        fernanda: 'Prioridade imediata no cadastro da Elo no PRM antes do freezing de 28/10.',
+        leticia: 'Validar disponibilidade da Carla para o treinamento ZCC de 30 a 45 min.'
+      }
+    };
+
+    /* ----------------------------------------------------
+       ESTADO GLOBAL
+    ---------------------------------------------------- */
+    const STORAGE_KEY = 'app_linear_tasks_v2';
+    let appState = {
+      tasks: [],
+      notes: {}
+    };
+
+    let currentArea = 'coletiva';
+    let currentView = 'list';
+    let currentSort = 'default';
+    let currentFilter = '';
+    let selectedTaskId = null;
+    let taskPendingDelete = null;
+    let draggedTaskId = null;
+
+    /* ----------------------------------------------------
+       PERSISTÊNCIA HÍBRIDA & INICIALIZAÇÃO
+    ---------------------------------------------------- */
+    function initData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          appState = JSON.parse(raw);
+        } else {
+          appState = JSON.parse(JSON.stringify(INITIAL_DATA));
+          saveData();
+        }
+      } catch (e) {
+        appState = JSON.parse(JSON.stringify(INITIAL_DATA));
+      }
+
+      // Restore view preference
+      try {
+        const savedView = localStorage.getItem('app_view_mode');
+        if (savedView === 'kanban' || savedView === 'list') {
+          currentView = savedView;
+        }
+      } catch (e) {}
+
+      updateAreaUI();
+      render();
+    }
+
+    function saveData() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (e) {
+        console.error('Erro ao salvar no storage local', e);
+      }
+
+      // Integração opcional transparente com Claude DB se presente
+      try {
+        if (window.claude && typeof window.claude.use === 'function') {
+          window.claude.use('db').then(db => {
+            if (db) {
+              appState.tasks.forEach(t => db.collection('tasks').doc(t.id).set(t).catch(() => {}));
+            }
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }
+
+    /* ----------------------------------------------------
+       NAVEGAÇÃO POR ÁREAS (Item 2 & 3)
+    ---------------------------------------------------- */
+    function setActiveArea(areaId) {
+      if (!AREA_CONFIG[areaId]) return;
+      currentArea = areaId;
+      updateAreaUI();
+      render();
+    }
+
+    function updateAreaUI() {
+      const cfg = AREA_CONFIG[currentArea];
+
+      // Header Area Label & Subtitle
+      document.getElementById('header-area-name').textContent = cfg.name;
+      document.getElementById('area-hero-icon').textContent = cfg.icon;
+      document.getElementById('area-hero-title').textContent = cfg.name;
+      document.getElementById('area-hero-subtitle').textContent = cfg.subtitle;
+
+      // Color Dot
+      const dot = document.getElementById('workspace-dot');
+      dot.style.backgroundColor = cfg.colorHex;
+
+      // Progress bar color
+      const pBar = document.getElementById('area-progress-bar');
+      pBar.style.backgroundColor = cfg.colorHex;
+
+      // Desktop Nav Pills
+      Object.keys(AREA_CONFIG).forEach(id => {
+        const btn = document.getElementById(`nav-btn-${id}`);
+        const count = appState.tasks.filter(t => t.person === id).length;
+        const countEl = document.getElementById(`nav-count-${id}`);
+        if (countEl) countEl.textContent = count;
+
+        if (id === currentArea) {
+          btn.className = `px-2.5 py-1 rounded-md text-xs font-semibold border ${cfg.activeClass} shadow-elevation-1`;
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition';
+        }
+
+        // Mobile nav pills
+        const mobBtn = document.getElementById(`mob-nav-${id}`);
+        if (mobBtn) {
+          if (id === currentArea) {
+            mobBtn.className = `px-2.5 py-1 rounded-md whitespace-nowrap font-semibold border ${cfg.activeClass}`;
+          } else {
+            mobBtn.className = 'px-2.5 py-1 rounded-md whitespace-nowrap font-medium text-slate-500 hover:bg-slate-100';
+          }
+        }
+      });
+
+      // Update Section Notes
+      document.getElementById('area-notes-label').textContent = `Anotações · ${cfg.name}`;
+      document.getElementById('area-notes-input').value = appState.notes[currentArea] || '';
+    }
+
+    /* ----------------------------------------------------
+       ALTERNÂNCIA DE VISUALIZAÇÃO (LISTA / KANBAN)
+    ---------------------------------------------------- */
+    function setViewMode(mode) {
+      currentView = mode;
+      try { localStorage.setItem('app_view_mode', mode); } catch (e) {}
+
+      const btnList = document.getElementById('view-toggle-list');
+      const btnKanban = document.getElementById('view-toggle-kanban');
+
+      if (mode === 'list') {
+        btnList.className = 'px-2.5 py-1 rounded-[6px] font-medium transition flex items-center gap-1 text-slate-900 bg-white shadow-elevation-1';
+        btnKanban.className = 'px-2.5 py-1 rounded-[6px] font-medium transition flex items-center gap-1 text-slate-500 hover:text-slate-800';
+      } else {
+        btnKanban.className = 'px-2.5 py-1 rounded-[6px] font-medium transition flex items-center gap-1 text-slate-900 bg-white shadow-elevation-1';
+        btnList.className = 'px-2.5 py-1 rounded-[6px] font-medium transition flex items-center gap-1 text-slate-500 hover:text-slate-800';
+      }
+
+      render();
+    }
+
+    function handleQuickFilter(val) {
+      currentFilter = (val || '').toLowerCase().trim();
+      render();
+    }
+
+    function changeSort(val) {
+      currentSort = val;
+      render();
+    }
+
+    /* ----------------------------------------------------
+       CÁLCULO DE PRAZOS & PROGRESSO
+    ---------------------------------------------------- */
+    function getDueInfo(dueStr, isDone) {
+      if (isDone) {
+        return { label: 'Concluído', class: 'text-slate-400 bg-slate-50 border-slate-200' };
+      }
+      if (!dueStr) {
+        return { label: 'Sem prazo', class: 'text-slate-400 bg-transparent border-transparent' };
+      }
+
+      // Parse YYYY-MM-DD
+      const p = dueStr.split('-');
+      if (p.length !== 3) return { label: dueStr, class: 'text-slate-600 bg-slate-50 border-slate-200' };
+
+      const target = new Date(p[0], p[1] - 1, p[2]);
+      target.setHours(0, 0, 0, 0);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+
+      // Caso especial de Urgência Crítica (Elo PRM / Freezing)
+      if (dueStr === '2026-10-27') {
+        return { 
+          label: '27/10 · Freezing crítico', 
+          class: 'text-amber-800 bg-amber-50 border-amber-200 font-semibold ring-1 ring-amber-300' 
+        };
+      }
+
+      if (diffDays < 0) {
+        return { label: `Atrasada (${Math.abs(diffDays)}d)`, class: 'text-rose-700 bg-rose-50 border-rose-200 font-medium' };
+      } else if (diffDays === 0) {
+        return { label: 'Vence hoje', class: 'text-amber-700 bg-amber-50 border-amber-200 font-medium' };
+      } else if (diffDays <= 3) {
+        return { label: `Em ${diffDays}d`, class: 'text-sky-700 bg-sky-50 border-sky-200 font-medium' };
+      } else {
+        return { label: `${p[2]}/${p[1]}`, class: 'text-slate-600 bg-slate-50 border-slate-200 font-medium' };
+      }
+    }
+
+    function calcTaskProgress(task) {
+      const subs = task.subs || [];
+      if (!subs.length) {
+        return task.status === 'done' ? 100 : (task.status === 'doing' ? 50 : 0);
+      }
+      const doneCount = subs.filter(s => s.d).length;
+      return Math.round((doneCount / subs.length) * 100);
+    }
+
+    /* ----------------------------------------------------
+       RENDERIZAÇÃO PRINCIPAL
+    ---------------------------------------------------- */
+    function render() {
+      // 1. Filtrar pela área ativa
+      let list = appState.tasks.filter(t => t.person === currentArea);
+
+      // 2. Filtrar por busca textual
+      if (currentFilter) {
+        list = list.filter(t => 
+          (t.title || '').toLowerCase().includes(currentFilter) || 
+          (t.detail || '').toLowerCase().includes(currentFilter)
+        );
+      }
+
+      // 3. Ordenação
+      if (currentSort === 'due') {
+        list.sort((a, b) => (a.due || '9999-99-99').localeCompare(b.due || '9999-99-99'));
+      } else if (currentSort === 'priority') {
+        const pMap = { 'Alta': 3, 'Média': 2, 'Baixa': 1 };
+        list.sort((a, b) => (pMap[b.priority] || 0) - (pMap[a.priority] || 0));
+      } else if (currentSort === 'name') {
+        list.sort((a, b) => a.title.localeCompare(b.title));
+      }
+
+      // 4. Atualizar métricas de progresso no topo
+      const total = list.length;
+      const done = list.filter(t => t.status === 'done').length;
+      const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      document.getElementById('area-progress-badge').textContent = `${done}/${total}`;
+      document.getElementById('area-progress-percent').textContent = `${percent}% concluído`;
+      document.getElementById('area-progress-bar').style.width = `${percent}%`;
+
+      // 5. Renderizar o modo ativo
+      const container = document.getElementById('view-container');
+      if (currentView === 'list') {
+        renderListView(list, container);
+      } else {
+        renderKanbanView(list, container);
+      }
+
+      // 6. Atualizar badge de navegação geral
+      Object.keys(AREA_CONFIG).forEach(id => {
+        const count = appState.tasks.filter(t => t.person === id).length;
+        const el = document.getElementById(`nav-count-${id}`);
+        if (el) el.textContent = count;
+      });
+    }
+
+    /* ----------------------------------------------------
+       MODO LISTA (MINIMALISTA, LINEAR STYLE)
+    ---------------------------------------------------- */
+    function renderListView(tasks, container) {
+      if (tasks.length === 0) {
+        container.innerHTML = `
+          <div class="h-64 flex flex-col items-center justify-center text-center p-6 bg-white rounded-xl border border-dashed border-slate-200">
+            <p class="text-xs text-slate-500 font-medium">Nenhuma tarefa encontrada nesta seção.</p>
+            <button onclick="openNewTaskModal()" class="mt-2 text-xs font-medium text-slate-900 underline hover:text-slate-700">
+              Criar primeira tarefa
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="bg-white rounded-xl border border-app-border divide-y divide-slate-100 shadow-elevation-1 overflow-hidden">';
+
+      tasks.forEach(t => {
+        const isDone = t.status === 'done';
+        const isDoing = t.status === 'doing';
+        const subs = t.subs || [];
+        const completedSubs = subs.filter(s => s.d).length;
+        const progress = calcTaskProgress(t);
+        const due = getDueInfo(t.due, isDone);
+
+        // Priority dot
+        let prioDot = 'bg-slate-300';
+        if (t.priority === 'Alta') prioDot = 'bg-rose-500';
+        if (t.priority === 'Média') prioDot = 'bg-amber-400';
+        if (t.priority === 'Baixa') prioDot = 'bg-emerald-400';
+
+        html += `
+          <div class="group flex items-center justify-between px-4 py-3 hover:bg-slate-50/80 transition cursor-pointer select-none" onclick="openDrawer('${t.id}')">
+            
+            <!-- Left: Checkbox & Title -->
+            <div class="flex items-center gap-3 min-w-0 pr-4">
+              <button onclick="event.stopPropagation(); toggleTaskDirectStatus('${t.id}')" class="flex-shrink-0 w-4 h-4 rounded border ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-slate-500 bg-white'} flex items-center justify-center transition">
+                ${isDone ? '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>' : ''}
+              </button>
+
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full ${prioDot} flex-shrink-0" title="Prioridade: ${t.priority || 'Normal'}"></span>
+                <span class="text-xs sm:text-sm font-medium ${isDone ? 'line-through text-slate-400' : 'text-slate-800'} truncate">
+                  ${escapeHtml(t.title)}
+                </span>
+              </div>
+            </div>
+
+            <!-- Right: Meta Tags (Subtasks counter, Due Date, Quick status) -->
+            <div class="flex items-center gap-2.5 flex-shrink-0 text-xs">
+              
+              <!-- Checklist indicator (if any) -->
+              ${subs.length > 0 ? `
+                <div class="hidden sm:flex items-center gap-1.5 font-mono text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/80">
+                  <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                  <span>${completedSubs}/${subs.length}</span>
+                </div>
+              ` : ''}
+
+              <!-- Due Date Badge -->
+              <span class="text-[11px] px-2 py-0.5 rounded border ${due.class}">
+                ${due.label}
+              </span>
+
+              <!-- Status Dropdown (quick switcher) -->
+              <div onclick="event.stopPropagation()">
+                <select onchange="updateTaskQuickStatus('${t.id}', this.value)" class="text-[11px] font-medium bg-transparent border-0 text-slate-500 hover:text-slate-800 cursor-pointer outline-none focus:ring-0">
+                  <option value="todo" ${t.status === 'todo' ? 'selected' : ''}>A fazer</option>
+                  <option value="doing" ${t.status === 'doing' ? 'selected' : ''}>Em andamento</option>
+                  <option value="done" ${t.status === 'done' ? 'selected' : ''}>Concluído</option>
+                </select>
+              </div>
+
+              <!-- Open Drawer Chevron -->
+              <svg class="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    /* ----------------------------------------------------
+       MODO KANBAN (MINIMALISTA, DRAG & DROP)
+    ---------------------------------------------------- */
+    function renderKanbanView(tasks, container) {
+      const columns = [
+        { id: 'todo', label: 'A fazer', icon: '⚪' },
+        { id: 'doing', label: 'Em andamento', icon: '🔵' },
+        { id: 'done', label: 'Concluído', icon: '🟢' }
+      ];
+
+      let html = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">';
+
+      columns.forEach(col => {
+        const colTasks = tasks.filter(t => (t.status || 'todo') === col.id);
+
+        html += `
+          <div class="bg-slate-50/70 rounded-xl p-3 border border-app-border flex flex-col min-h-[460px] transition-all"
+               ondragover="handleDragOver(event)"
+               ondragleave="handleDragLeave(event)"
+               ondrop="handleDrop(event, '${col.id}')">
+            
+            <!-- Column Header -->
+            <div class="flex items-center justify-between pb-2.5 mb-2 px-1 border-b border-slate-200/60">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs">${col.icon}</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-600">${col.label}</span>
+              </div>
+              <span class="text-[11px] font-mono text-slate-400">${colTasks.length}</span>
+            </div>
+
+            <!-- Card List -->
+            <div class="space-y-2.5 flex-1">
+              ${colTasks.length === 0 ? `
+                <div class="h-20 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-[11px] text-slate-400">
+                  Arraste tarefas para cá
+                </div>
+              ` : ''}
+
+              ${colTasks.map(t => renderKanbanCard(t)).join('')}
+            </div>
+
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function renderKanbanCard(t) {
+      const isDone = t.status === 'done';
+      const subs = t.subs || [];
+      const completedSubs = subs.filter(s => s.d).length;
+      const due = getDueInfo(t.due, isDone);
+
+      let prioPill = 'text-slate-500 bg-slate-100';
+      if (t.priority === 'Alta') prioPill = 'text-rose-700 bg-rose-50 border border-rose-200';
+      if (t.priority === 'Média') prioPill = 'text-amber-700 bg-amber-50 border border-amber-200';
+      if (t.priority === 'Baixa') prioPill = 'text-emerald-700 bg-emerald-50 border border-emerald-200';
+
+      return `
+        <div id="card-${t.id}"
+             draggable="true"
+             ondragstart="handleDragStart(event, '${t.id}')"
+             ondragend="handleDragEnd(event, '${t.id}')"
+             onclick="openDrawer('${t.id}')"
+             class="bg-white rounded-lg p-3.5 border border-slate-200 shadow-elevation-1 hover:border-slate-300 hover:shadow-elevation-2 transition cursor-grab active:cursor-grabbing space-y-2.5">
+          
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-[10px] font-medium px-1.5 py-0.5 rounded ${prioPill}">
+              ${t.priority || 'Normal'}
+            </span>
+            ${t.due ? `
+              <span class="text-[10px] px-1.5 py-0.5 rounded border ${due.class}">
+                ${due.label}
+              </span>
+            ` : ''}
+          </div>
+
+          <h4 class="text-xs sm:text-sm font-medium text-slate-800 leading-snug ${isDone ? 'line-through text-slate-400' : ''}">
+            ${escapeHtml(t.title)}
+          </h4>
+
+          <!-- Subtasks Progress Indicator -->
+          ${subs.length > 0 ? `
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
+              <span class="flex items-center gap-1">
+                <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                ${completedSubs}/${subs.length} etapas
+              </span>
+              <span>${calcTaskProgress(t)}%</span>
+            </div>
+          ` : ''}
+
+          <!-- Mobile Move Buttons (touch friendly alternative to drag) -->
+          <div class="flex md:hidden items-center justify-between pt-1 border-t border-slate-100 text-[10px]" onclick="event.stopPropagation()">
+            <span class="text-slate-400">Mover:</span>
+            <div class="flex gap-1">
+              <button onclick="updateTaskQuickStatus('${t.id}', 'todo')" class="px-1.5 py-0.5 rounded ${t.status === 'todo' ? 'bg-slate-200 font-bold' : 'bg-slate-100'}">Fazer</button>
+              <button onclick="updateTaskQuickStatus('${t.id}', 'doing')" class="px-1.5 py-0.5 rounded ${t.status === 'doing' ? 'bg-blue-100 text-blue-700 font-bold' : 'bg-slate-100'}">Andamento</button>
+              <button onclick="updateTaskQuickStatus('${t.id}', 'done')" class="px-1.5 py-0.5 rounded ${t.status === 'done' ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-slate-100'}">Feito</button>
+            </div>
+          </div>
+
+        </div>
+      `;
+    }
+
+    /* ----------------------------------------------------
+       KANBAN DRAG AND DROP
+    ---------------------------------------------------- */
+    function handleDragStart(e, taskId) {
+      draggedTaskId = taskId;
+      e.dataTransfer.setData('text/plain', taskId);
+      e.dataTransfer.effectAllowed = 'move';
+      const el = document.getElementById(`card-${taskId}`);
+      if (el) el.classList.add('card-dragging');
+    }
+
+    function handleDragEnd(e, taskId) {
+      draggedTaskId = null;
+      const el = document.getElementById(`card-${taskId}`);
+      if (el) el.classList.remove('card-dragging');
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-target');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-target');
+    }
+
+    function handleDrop(e, targetColId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-target');
+      if (!draggedTaskId) return;
+
+      const task = appState.tasks.find(t => t.id === draggedTaskId);
+      if (task && task.status !== targetColId) {
+        task.status = targetColId;
+        if (targetColId === 'done' && task.subs) {
+          task.subs.forEach(s => s.d = true);
+        }
+        saveData();
+        render();
+        showToast(`Movido para ${targetColId === 'done' ? 'Concluído' : (targetColId === 'doing' ? 'Em andamento' : 'A fazer')}`);
+      }
+      draggedTaskId = null;
+    }
+
+    /* ----------------------------------------------------
+       AÇÕES RÁPIDAS DAS TAREFAS
+    ---------------------------------------------------- */
+    function toggleTaskDirectStatus(taskId) {
+      const task = appState.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      const nextStatus = task.status === 'done' ? 'todo' : 'done';
+      task.status = nextStatus;
+
+      // Sincroniza etapas
+      if (task.subs) {
+        task.subs.forEach(s => s.d = (nextStatus === 'done'));
+      }
+
+      saveData();
+      render();
+      if (selectedTaskId === taskId) populateDrawer();
+      showToast(nextStatus === 'done' ? 'Tarefa concluída' : 'Tarefa reaberta');
+    }
+
+    function updateTaskQuickStatus(taskId, statusVal) {
+      const task = appState.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      task.status = statusVal;
+      if (statusVal === 'done' && task.subs) {
+        task.subs.forEach(s => s.d = true);
+      }
+      saveData();
+      render();
+      if (selectedTaskId === taskId) populateDrawer();
+      showToast('Status atualizado');
+    }
+
+    /* ----------------------------------------------------
+       DRAWER LATERAL (NOTION / LINEAR STYLE)
+    ---------------------------------------------------- */
+    function openDrawer(taskId) {
+      selectedTaskId = taskId;
+      populateDrawer();
+
+      const drawer = document.getElementById('task-drawer');
+      const backdrop = document.getElementById('task-drawer-backdrop');
+
+      drawer.classList.remove('translate-x-full');
+      backdrop.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeDrawer() {
+      const drawer = document.getElementById('task-drawer');
+      const backdrop = document.getElementById('task-drawer-backdrop');
+
+      drawer.classList.add('translate-x-full');
+      backdrop.classList.add('opacity-0', 'pointer-events-none');
+      selectedTaskId = null;
+    }
+
+    function populateDrawer() {
+      const task = appState.tasks.find(t => t.id === selectedTaskId);
+      if (!task) {
+        closeDrawer();
+        return;
+      }
+
+      document.getElementById('drawer-area-tag').textContent = AREA_CONFIG[task.person]?.name || 'Área';
+      document.getElementById('drawer-status-preview').textContent = 
+        task.status === 'done' ? 'Concluído' : (task.status === 'doing' ? 'Em andamento' : 'A fazer');
+
+      document.getElementById('drawer-task-title').value = task.title || '';
+      document.getElementById('drawer-task-status').value = task.status || 'todo';
+      document.getElementById('drawer-task-person').value = task.person || 'coletiva';
+      document.getElementById('drawer-task-priority').value = task.priority || 'Média';
+      document.getElementById('drawer-task-due').value = task.due || '';
+
+      document.getElementById('drawer-task-detail').value = task.detail || '';
+      document.getElementById('drawer-task-note').value = task.note || '';
+      document.getElementById('drawer-created-date').textContent = `Criada em: ${task.createdDate || '27/10/2026'}`;
+
+      renderDrawerSubtasks(task);
+    }
+
+    function updateDrawerTaskField(field, value) {
+      const task = appState.tasks.find(t => t.id === selectedTaskId);
+      if (!task) return;
+
+      task[field] = value;
+      saveData();
+      render();
+
+      // If person changed, switch current view to maintain continuity
+      if (field === 'person' && value !== currentArea) {
+        setActiveArea(value);
+      }
+    }
+
+    function clearDrawerDueDate() {
+      document.getElementById('drawer-task-due').value = '';
+      updateDrawerTaskField('due', '');
+    }
+
+    /* Subtasks dentro do Drawer */
+    function renderDrawerSubtasks(task) {
+      const listEl = document.getElementById('drawer-subtasks-list');
+      const subs = task.subs || [];
+      const completed = subs.filter(s => s.d).length;
+      const progress = subs.length ? Math.round((completed / subs.length) * 100) : 0;
+
+      document.getElementById('drawer-sub-count').textContent = `${completed}/${subs.length}`;
+      document.getElementById('drawer-sub-progress').style.width = `${progress}%`;
+
+      if (subs.length === 0) {
+        listEl.innerHTML = '<p class="text-[11px] text-slate-400 py-1">Nenhuma etapa cadastrada.</p>';
+        return;
+      }
+
+      listEl.innerHTML = subs.map((s, idx) => `
+        <div class="group/item flex items-center gap-2.5 py-1 px-1 rounded hover:bg-slate-50 transition">
+          <input type="checkbox" ${s.d ? 'checked' : ''} onchange="toggleDrawerSubtask(${idx})" class="w-3.5 h-3.5 rounded text-slate-900 focus:ring-slate-400 cursor-pointer">
+          <input type="text" value="${escapeHtml(s.t)}" onchange="updateDrawerSubtaskText(${idx}, this.value)" class="flex-1 bg-transparent border-0 text-xs text-slate-700 outline-none focus:ring-0 ${s.d ? 'line-through text-slate-400' : ''}">
+          <button onclick="removeDrawerSubtask(${idx})" class="opacity-0 group-hover/item:opacity-100 text-slate-300 hover:text-rose-500 text-xs px-1" title="Excluir etapa">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function toggleDrawerSubtask(idx) {
+      const task = appState.tasks.find(t => t.id === selectedTaskId);
+      if (!task || !task.subs || !task.subs[idx]) return;
+
+      task.subs[idx].d = !task.subs[idx].d;
+
+      // Atualiza status se todas concluídas
+      const allDone = task.subs.every(s => s.d);
+      if (allDone && task.subs.length > 0) {
+        task.status = 'done';
+      } else if (task.status === 'done' && !allDone) {
+        task.status = 'doing';
+      }
+
+      saveData();
+      render();
+      populateDrawer();
+    }
+
+    function updateDrawerSubtaskText(idx, text) {
+      const task = appState.tasks.find(t => t.id === selectedTaskId);
+      if (!task || !task.subs || !task.subs[idx]) return;
+      task.subs[idx].t = text.trim() || 'Etapa sem título';
+      saveData();
+    }
+
+    function removeDrawerSubtask(idx) {
+      const task = appState.tasks.find(t => t.id === selectedTaskId);
+      if (!task || !task.subs) return;
+      task.subs.splice(idx, 1);
+      saveData();
+      render();
+      populateDrawer();
+    }
+
+    function addDrawerSubtask() {
+      const input = document.getElementById('drawer-new-sub-input');
+      const val = input.value.trim();
+      if (!val) return;
+
+      const task = appState.tasks.find(t => t.id === selectedTaskId);
+      if (!task) return;
+      if (!task.subs) task.subs = [];
+
+      task.subs.push({
+        id: 's-' + Date.now(),
+        t: val,
+        d: false
+      });
+
+      input.value = '';
+      saveData();
+      render();
+      populateDrawer();
+      showToast('Etapa adicionada');
+    }
+
+    /* ----------------------------------------------------
+       MODAL DE NOVA TAREFA
+    ---------------------------------------------------- */
+    function openNewTaskModal() {
+      document.getElementById('new-task-form').reset();
+      document.getElementById('new-person').value = currentArea;
+      document.getElementById('modal-new-task').classList.remove('hidden');
+    }
+
+    function closeNewTaskModal() {
+      document.getElementById('modal-new-task').classList.add('hidden');
+    }
+
+    function handleNewTaskSubmit(e) {
+      e.preventDefault();
+      const title = document.getElementById('new-title').value.trim();
+      if (!title) return;
+
+      const person = document.getElementById('new-person').value;
+      const priority = document.getElementById('new-priority').value;
+      const status = document.getElementById('new-status').value;
+      const due = document.getElementById('new-due').value;
+      const detail = document.getElementById('new-detail').value.trim();
+
+      const newTask = {
+        id: 'task-' + Date.now(),
+        person,
+        title,
+        detail,
+        createdDate: new Date().toISOString().split('T')[0],
+        due,
+        status,
+        priority,
+        note: '',
+        subs: []
+      };
+
+      appState.tasks.unshift(newTask);
+      saveData();
+
+      closeNewTaskModal();
+      if (person !== currentArea) {
+        setActiveArea(person);
+      } else {
+        render();
+      }
+      showToast('Tarefa criada');
+      openDrawer(newTask.id);
+    }
+
+    /* ----------------------------------------------------
+       CONFIRMAÇÃO DE EXCLUSÃO (Item 5)
+    ---------------------------------------------------- */
+    function promptDeleteCurrentDrawerTask() {
+      const task = appState.tasks.find(t => t.id === selectedTaskId);
+      if (!task) return;
+      taskPendingDelete = task;
+
+      document.getElementById('delete-task-preview').textContent = task.title;
+      document.getElementById('btn-execute-delete').onclick = executeTaskDelete;
+      document.getElementById('modal-delete-confirm').classList.remove('hidden');
+    }
+
+    function closeDeleteConfirmModal() {
+      document.getElementById('modal-delete-confirm').classList.add('hidden');
+      taskPendingDelete = null;
+    }
+
+    function executeTaskDelete() {
+      if (!taskPendingDelete) return;
+      appState.tasks = appState.tasks.filter(t => t.id !== taskPendingDelete.id);
+      saveData();
+      closeDeleteConfirmModal();
+      closeDrawer();
+      render();
+      showToast('Tarefa excluída');
+    }
+
+    /* ----------------------------------------------------
+       ANOTAÇÕES DA SEÇÃO
+    ---------------------------------------------------- */
+    let notesTimeout = null;
+    function saveAreaNotes(val) {
+      appState.notes[currentArea] = val;
+      const statusEl = document.getElementById('area-notes-status');
+      statusEl.classList.remove('hidden');
+      statusEl.textContent = 'Salvando...';
+
+      clearTimeout(notesTimeout);
+      notesTimeout = setTimeout(() => {
+        saveData();
+        statusEl.textContent = 'Salvo';
+        setTimeout(() => statusEl.classList.add('hidden'), 2000);
+      }, 500);
+    }
+
+    /* ----------------------------------------------------
+       UTILITÁRIOS: MENU DE OPÇÕES, EXPORTAÇÃO & RESET
+    ---------------------------------------------------- */
+    function toggleOptionsMenu() {
+      const menu = document.getElementById('options-menu');
+      menu.classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('menu-dropdown-container');
+      if (container && !container.contains(e.target)) {
+        document.getElementById('options-menu').classList.add('hidden');
+      }
+    });
+
+    function exportJSONBackup() {
+      const blob = new Blob([JSON.stringify(appState, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_tarefas_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup exportado');
+    }
+
+    function importJSONBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed && Array.isArray(parsed.tasks)) {
+            appState = parsed;
+            saveData();
+            updateAreaUI();
+            render();
+            showToast('Backup importado com sucesso');
+          }
+        } catch (err) {
+          showToast('Erro ao importar JSON');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function confirmResetDefaults() {
+      if (confirm('Deseja restaurar as tarefas originais de fábrica? Todas as alterações manuais serão resetadas.')) {
+        appState = JSON.parse(JSON.stringify(INITIAL_DATA));
+        saveData();
+        updateAreaUI();
+        render();
+        showToast('Dados restaurados');
+      }
+    }
+
+    let toastTimer = null;
+    function showToast(text, icon = '✓') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = text;
+      document.getElementById('toast-icon').textContent = icon;
+
+      toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none');
+      }, 2500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Inicialização da aplicação
+    window.addEventListener('DOMContentLoaded', initData);
+  </script>
+</body>
+</html>
